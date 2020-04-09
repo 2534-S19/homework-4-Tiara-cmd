@@ -16,8 +16,13 @@ bool UARTHasChar(uint32_t moduleInstance);
 uint8_t UARTGetChar(uint32_t moduleInstance);
 bool UARTCanSend(uint32_t moduleInstance);
 void UARTPutChar(uint32_t moduleInstance, uint8_t tChar);
-void UARTPutString(uint32_t moduleInstance, uint8_t *str);
+
+
+enum stateMachine {EMPTY,STATEONE,STATETWO,STATETHREE} state;
+//void updateFSM(char *trigger,stateMachine s);
+char trigger[];
 
 // TODO: Define any constants that are local to homework.c using #define
+
 
 #endif /* HOMEWORK4_H_ */

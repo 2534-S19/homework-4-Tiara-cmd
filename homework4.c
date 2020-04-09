@@ -1,5 +1,6 @@
 #include <ti/devices/msp432p4xx/driverlib/driverlib.h>
 #include "homework4.h"
+#include "string.h"
 
 int main(void)
 {
@@ -7,13 +8,15 @@ int main(void)
     char *response = "\n\n\r2534 is the best course in the curriculum!\r\n\n";
 
     // TODO: Declare the variables that main uses to interact with your state machine.
-
+    //finished = false;
+    state = EMPTY;
+    trigger[0] = '\0';
 
     // Stops the Watchdog timer.
     initBoard();
     // TODO: Declare a UART config struct as defined in uart.h.
     //       To begin, configure the UART for 9600 baud, 8-bit payload (LSB first), no parity, 1 stop bit.
-    eUSCI_UART_Config uartConfig =
+    eUSCI_UART_ConfigV1 uartConfig =
     {
          EUSCI_A_UART_CLOCKSOURCE_SMCLK,                // SMCLK Clock Source = 3000000 = 3MHz: N = freq / baud rate = 312.5
          19,                                            // UCBR = INT(N/16) = 19.53 = 19
@@ -23,7 +26,8 @@ int main(void)
          EUSCI_A_UART_LSB_FIRST,                        // LSB First
          EUSCI_A_UART_ONE_STOP_BIT,                     // One stop bit
          EUSCI_A_UART_MODE,                             // UART mode
-         EUSCI_A_UART_OVERSAMPLING_BAUDRATE_GENERATION  // Oversampling
+         EUSCI_A_UART_OVERSAMPLING_BAUDRATE_GENERATION, // Oversampling
+         EUSCI_A_UART_8_BIT_LEN,
 
     };
 
@@ -42,22 +46,43 @@ int main(void)
         // TODO: Check the receive interrupt flag to see if a received character is available.
         //       Return 0xFF if no character is available.
         if(UARTHasChar(EUSCI_A0_BASE))
-        {
             rChar = UARTGetChar(EUSCI_A0_BASE);
+        else
+            rChar = 0x55;
 
-            if(UARTCanSend(EUSCI_A0_BASE))
-                UARTPutChar(EUSCI_A0_BASE,rChar);
-        }
-        // Error from returning 0x55
 
         // TODO: If an actual character was received, echo the character to the terminal AND use it to update the FSM.
         //       Check the transmit interrupt flag prior to transmitting the character.
 
 
+        if (UARTCanSend(EUSCI_A0_BASE) && rChar != 0x55)
+        {
+            UARTPutChar(EUSCI_A0_BASE, rChar);
+            strncat(trigger,&rChar,1);
+            //updateFSM(check,state);
+        }
+
+        //}
         // TODO: If the FSM indicates a successful string entry, transmit the response string.
         //       Check the transmit interrupt flag prior to transmitting each character and moving on to the next one.
         //       Make sure to reset the success variable after transmission.
+        if(charFSM(rChar))
+        {
+            trigger[0] = '\0';
+            char *strCopy = response;
+            int i = 0;
+            while(*(strCopy+i) != '\0')
+            {
+                rChar = *(strCopy+i);
+                if (UARTCanSend(EUSCI_A0_BASE))
+                {
+                    UARTPutChar(EUSCI_A0_BASE, rChar);
+                    i++;
+                }
+            }
 
+
+        }
 
     }
 }
@@ -70,11 +95,71 @@ void initBoard()
 // TODO: FSM for detecting character sequence.
 bool charFSM(char rChar)
 {
-    bool finished = false;
+
+    bool finished;
+    switch (state)
+    {
+        case EMPTY:
+            if(rChar == '2')
+            {
+                trigger[0] = '2';
+                state = STATEONE;
+            }
+
+            finished = false;
+            break;
+
+        case STATEONE:
+            if(rChar == '5' && strcmp(trigger,"2") == 0)
+            {
+                trigger[1] = '5';
+                state = STATETWO;
+            }
+            else
+            {
+                trigger[0] = '\0';
+                state = EMPTY;
+            }
+            finished = false;
+            break;
+
+        case STATETWO:
+            if(rChar == '3' && strcmp(trigger,"25") == 0)
+            {
+                trigger[2] = '3';
+                state = STATETHREE;
+            }
+            else
+            {
+                trigger[0] = '\0';
+                state = EMPTY;
+            }
+            finished = false;
+            break;
+
+        case STATETHREE:
+            if(rChar == '4' && strcmp(trigger,"253") == 0)
+            {
+                trigger[3] = '4';
+                //state = RESPONSE;
+                finished = true;
+            }
+            else
+            {
+                state = EMPTY;
+                trigger[0] = '\0';
+                finished = false;
+            }
+            break;
+
+    }
+
 
 
     return finished;
 }
+
+
 
 bool UARTHasChar(uint32_t moduleInstance)
 {
@@ -95,11 +180,6 @@ bool UARTCanSend(uint32_t moduleInstance)
 void UARTPutChar(uint32_t moduleInstance, uint8_t tChar)
 {
     UART_transmitData(moduleInstance, tChar);
-}
-
-void UARTPutString(uint32_t moduleInstance, uint8_t *str)
-{
-
 }
 
 
