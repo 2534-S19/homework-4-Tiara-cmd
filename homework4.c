@@ -9,8 +9,7 @@ int main(void)
 
     // TODO: Declare the variables that main uses to interact with your state machine.
     //finished = false;
-    state = EMPTY;
-    trigger[0] = '\0';
+    state = STATEX;
 
     // Stops the Watchdog timer.
     initBoard();
@@ -58,31 +57,28 @@ int main(void)
         if (UARTCanSend(EUSCI_A0_BASE) && rChar != 0x55)
         {
             UARTPutChar(EUSCI_A0_BASE, rChar);
-            strncat(trigger,&rChar,1);
-            //updateFSM(check,state);
+
+            if(charFSM(rChar))
+            {
+                char *strCopy = response;
+                int i = 0;
+                while(*(strCopy+i) != '\0')
+                {
+                    rChar = *(strCopy+i);
+                    if (UARTCanSend(EUSCI_A0_BASE))
+                    {
+                        UARTPutChar(EUSCI_A0_BASE, rChar);
+                        i++;
+                    }
+                }
+            }
         }
 
         //}
         // TODO: If the FSM indicates a successful string entry, transmit the response string.
         //       Check the transmit interrupt flag prior to transmitting each character and moving on to the next one.
         //       Make sure to reset the success variable after transmission.
-        if(charFSM(rChar))
-        {
-            trigger[0] = '\0';
-            char *strCopy = response;
-            int i = 0;
-            while(*(strCopy+i) != '\0')
-            {
-                rChar = *(strCopy+i);
-                if (UARTCanSend(EUSCI_A0_BASE))
-                {
-                    UARTPutChar(EUSCI_A0_BASE, rChar);
-                    i++;
-                }
-            }
 
-
-        }
 
     }
 }
@@ -92,67 +88,42 @@ void initBoard()
     WDT_A_hold(WDT_A_BASE);
 }
 
+
 // TODO: FSM for detecting character sequence.
 bool charFSM(char rChar)
 {
 
-    bool finished;
+    bool finished = false;
     switch (state)
     {
-        case EMPTY:
-            if(rChar == '2')
-            {
-                trigger[0] = '2';
+        case STATEX:
+            if (rChar == '2')
                 state = STATEONE;
-            }
-
-            finished = false;
+            else
+                state = STATEX;
             break;
 
         case STATEONE:
-            if(rChar == '5' && strcmp(trigger,"2") == 0)
-            {
-                trigger[1] = '5';
+            if (rChar == '5')
                 state = STATETWO;
-            }
             else
-            {
-                trigger[0] = '\0';
-                state = EMPTY;
-            }
-            finished = false;
+                state = STATEX;
             break;
 
         case STATETWO:
-            if(rChar == '3' && strcmp(trigger,"25") == 0)
-            {
-                trigger[2] = '3';
+            if (rChar == '3')
                 state = STATETHREE;
-            }
             else
-            {
-                trigger[0] = '\0';
-                state = EMPTY;
-            }
-            finished = false;
+                state = STATEX;
             break;
 
         case STATETHREE:
-            if(rChar == '4' && strcmp(trigger,"253") == 0)
-            {
-                trigger[3] = '4';
-                //state = RESPONSE;
+            if (rChar == '4')
                 finished = true;
-            }
-            else
-            {
-                state = EMPTY;
-                trigger[0] = '\0';
-                finished = false;
-            }
-            break;
 
-    }
+            state = STATEX;
+            break;
+        }
 
 
 
